@@ -59,14 +59,14 @@ class Delay(Parser, SingleMix):
 
 class And(Parser, SingleMix):
     """
-    Succeeds if a parser succeeded. But it doesn't consume string.
+    Succeeds if the parser succeeded. But it doesn't consume string.
     """
     def parse(self, string):
         return self._x.parse(string) and (None, string)
 
 class Not(Parser, SingleMix):
     """
-    Succeeds if a parser failed. But it doesn't consume string.
+    Succeeds if the parser failed. But it doesn't consume string.
     """
     def parse(self, string):
         return not self._x.parse(string) and (None, string) or None
@@ -81,7 +81,7 @@ class Or(Parser, infixMix("|")):
 
 class Bind(Parser, infixMix("&")):
     """
-    Compose a parser and a function that takes a result of the parser and returns a parser.
+    Compose the parser and the function that takes a result of the parser and returns a parser.
     It's equivalent to Haskell's monad binding (>>=).
     """
     def parse(self, string):
@@ -173,7 +173,7 @@ class String(Parser, SingleMix):
             self._string, string[len(self._x):] or None
 
 class Many(Parser, SingleMix):
-    """Applies a parser repeatedly and returns a list of results."""  
+    """Applies the parser repeatedly and returns a list of results."""  
     def parse(self, string):
         results = []
         t = string
@@ -186,7 +186,7 @@ class Many(Parser, SingleMix):
         return results, t
 
 class Many1(Many, SingleMix):
-    """Applies a parser repeatedly at least once."""
+    """Applies the parser repeatedly at least once."""
     def parse(self, string):
         result = self._x.parse(string)
         if result:
