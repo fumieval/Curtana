@@ -1,0 +1,10 @@
+*.pyc
+*.egg-info
+*.xml
+*.o
+*.so
+*.log
+.directory
+.settings
+build
+dist
