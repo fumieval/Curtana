@@ -13,7 +13,7 @@ def arrangetext():
         P.StringA ** (P.Char("&") >> (P.String("gt;") >> P.Return(">")
                                        | P.String("lt;") >> P.Return("<"))
                        | withcolor(36) ** SCREEN_NAME
-                       | P.StringA * P.Char(" ") * withcolor(35) ** HASHTAG
+                       | P.StringA ** P.Char(" ") * withcolor(35) ** HASHTAG
                        | P.AnyChar()
                        ) * P.Delay(arrangetext)
 
