@@ -140,14 +140,15 @@ def serve(host=DEFAULT_HOST, port=DEFAULT_PORT):
     server.serve_forever()
     
 class Client():
-    def __init__(self, name, host=DEFAULT_HOST, port=DEFAULT_PORT):
+    def __init__(self, name, host=DEFAULT_HOST, port=DEFAULT_PORT, join=True):
         self.host = host
         self.port = port
         self.name = name
         self._conn = xmlrpclib.ServerProxy("http://%s:%s/"% (host, port))
-        if not self._conn.confirm(name):
-            self._conn.register(name)
-        self.index = self._conn.join(name)
+        if join:
+            if not self._conn.confirm(name):
+                self._conn.register(name)
+            self.index = self._conn.join(name)
 
     def close(self):
         conn = xmlrpclib.ServerProxy("http://%s:%s/"% (self.host, self.port))

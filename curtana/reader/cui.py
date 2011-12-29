@@ -1,3 +1,4 @@
+
 import sys
 import curtana.lib.parser as P
 from curtana import userstream
@@ -5,15 +6,15 @@ from curtana import userstream
 def is_hashtag_char(c):
     return c == "_" or c.isalnum() or 12353 <= ord(c) <= 12534 or 20124 <= ord(c) <= 40657
 
-SCREEN_NAME = P.StringA ** P.Char("@") * P.join ** +(P.alnum | P.Char("_"))
-HASHTAG = P.StringA ** P.Char("#") * P.join ** +P.Sat(is_hashtag_char)
+SCREEN_NAME = P.StringA() ** P.Char("@") * P.join ** +(P.alnum | P.Char("_"))
+HASHTAG = P.StringA() ** P.Char("#") * P.join ** +P.Sat(is_hashtag_char)
 
 def arrangetext():
     return P.Null() | withcolor(35) ** HASHTAG | \
-        P.StringA ** (P.Char("&") >> (P.String("gt;") >> P.Return(">")
+        P.StringA() ** (P.Char("&") >> (P.String("gt;") >> P.Return(">")
                                        | P.String("lt;") >> P.Return("<"))
                        | withcolor(36) ** SCREEN_NAME
-                       | P.StringA ** P.Char(" ") * withcolor(35) ** HASHTAG
+                       | P.StringA() ** P.Char(" ") * withcolor(35) ** HASHTAG
                        | P.AnyChar()
                        ) * P.Delay(arrangetext)
 
@@ -33,12 +34,12 @@ def showstatus(i, data):
             st = data["retweeted_status"]
             print " ".join([withcolor(33)(i),
                             withcolor(32)(st["user"]["screen_name"]) + ":",
-                            arrangetext()(st["text"])[0],
+                            unicode(arrangetext()(st["text"])[0]),
                             "--" + withcolor(34)(name)])
         else:
             print " ".join([withcolor(33)(i),
                             withcolor(34)(name) + ":",
-                            arrangetext()(data["text"])[0]])
+                            unicode(arrangetext()(data["text"])[0])])
 
 def listen_timeline(identifier):
     client = userstream.Client(identifier)
@@ -59,3 +60,7 @@ if __name__ == "__main__":
         userstream.serve()
     if sys.argv[1] == "timeline":
         listen_timeline(sys.argv[2])
+    if sys.argv[1] == "close":
+        s = userstream.Client(sys.argv[2])
+        s.index = sys.argv[3]
+        s.close()

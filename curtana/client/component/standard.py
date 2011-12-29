@@ -10,8 +10,8 @@ def call(f):
 class Standard(Component):
     def __init__(self):
         self.parser = (
-              P.Char("%") >> call(self.set_env) * P.Delimited(":") * P.Any()
-            | P.Char(">") >> call(self.prompt) * P.Delimited(":") * P.Any()
+              P.Char("%") >> call(self.set_env) * P.join ** -P.NotChar(":") * P.Any()
+            | P.Char(">") >> call(self.prompt) * P.join ** -P.NotChar(":") * P.Any()
             | P.Char(",") >> call(self.expand_text) * P.Any()
             | P.Char("?") >> call(self.show_help)
             | P.Char(".") >> call(self.echo_text) * P.Any()
@@ -20,7 +20,7 @@ class Standard(Component):
     
     def command(self, env, user, text):
         for component in user.CLIENT_COMPONENTS:
-            action = component.parser.parse(text)
+            action = component.parser(text)
             if action:
                 component.run(env, user, action[0])
     

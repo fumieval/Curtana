@@ -6,7 +6,7 @@ from curtana import path
 
 def execute(env, user, line, allowdefault=True):
     for component in user.CLIENT_COMPONENTS:
-        action = component.parser.parse(line)
+        action = component.parser(line)
         if action:
             component.run(env, user, action[0])
             break
