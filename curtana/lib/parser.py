@@ -1,7 +1,6 @@
 """
 Parsing expression grammar library
 """
-from collections import defaultdict
 
 class VoidMix(object):
     def __repr__(self): return self.__class__.__name__ + "()"
@@ -14,18 +13,18 @@ class SingleMix_(object):
     def __init__(self, y): self._y = y
     def __repr__(self): return "%s(%r)" % (self.__class__.__name__, self._y)
 
-class UnaryMix():
+class UnaryMix(object):
     def __init__(self, x): self._x = x
     def __repr__(self): return "%s%r" % (self.__class__.op, self._x)
 
-class InfixMix():
+class InfixMix(object):
     def __init__(self, left, right):
         self._left = left
         self._right = right
     def __repr__(self):
         return "(%r %s %r)" % (self._left, self.__class__.op, self._right)
 
-class StringI():
+class StringI(object):
     def __init__(self, string, start=0):
         self.string = string
         self.end = len(string)
@@ -103,7 +102,6 @@ class Not(Parser, UnaryMix):
     """
     op = "~"
     __init__ = UnaryMix.__init__
-    __repr__ = UnaryMix.__repr__
     def parse(self, string):
         return not self._x.parse(string.tee) and (None, string) or None
 
@@ -114,7 +112,6 @@ class Or(Parser, InfixMix):
     """
     op = "|"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         return self._left.parse(string.tee) or self._right.parse(string)
 
@@ -125,7 +122,6 @@ class Bind(Parser, InfixMix):
     """
     op = "&"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         result = self._left.parse(string)
         return result and self._right(result[0]).parse(result[1])
@@ -134,7 +130,6 @@ class DiscardL(Parser, InfixMix):
     """Composite of two parsers, discarding the result of the first parser."""
     op = ">>"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         result0 = self._left.parse(string)
         return result0 and self._right.parse(result0[1])
@@ -143,7 +138,6 @@ class DiscardR(Parser, InfixMix):
     """Composite of two parsers, discarding the result of the second parser."""
     op = "<<"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         result0 = self._left.parse(string)
         if result0:
@@ -154,7 +148,6 @@ class Lift(Parser, InfixMix):
     """Lifting of the function to a parser."""
     op = "^"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         result = self._right.parse(string)
         return result and (self._left(result[0]), result[1])
@@ -163,7 +156,6 @@ class Apply(Parser, InfixMix):
     """Applying the parser to the parser."""
     op = "*"
     __init__ = InfixMix.__init__
-    __repr__ = InfixMix.__repr__
     def parse(self, string):
         result0 = self._left.parse(string)
         if result0:
