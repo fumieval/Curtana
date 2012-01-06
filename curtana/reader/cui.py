@@ -1,25 +1,28 @@
 
 import sys
-import curtana.lib.parser as P
+import curtana.lib.parser_aliases as P
+import curtana.lib.parser_entities as E
+from curtana.lib.container import StringA
+import curtana.reader.condition as C
 from curtana import userstream
 
 def is_hashtag_char(c):
     return c == "_" or c.isalnum() or 12353 <= ord(c) <= 12534 or 20124 <= ord(c) <= 40657
 
-SCREEN_NAME = P.StringA() ** P.Char("@") * P.join ** +(P.alnum | P.Char("_"))
-HASHTAG = P.StringA() ** P.Char("#") * P.join ** +P.Sat(is_hashtag_char)
+SCREEN_NAME = StringA() ** P.C("@") * "".join ** +(E.alnum | P.C("_"))
+HASHTAG = StringA() ** P.C("#") * "".join ** +P.P(is_hashtag_char)
 
 def arrangetext():
-    return P.Null() | withcolor(35) ** HASHTAG | \
-        P.StringA() ** (P.Char("&") >> (P.String("gt;") >> P.Return(">")
-                                       | P.String("lt;") >> P.Return("<"))
+    return P.N | withcolor(35) ** HASHTAG | \
+        StringA() ** (P.C("&") >> (P.S("gt;") >> P.R(">")
+                                   | P.S("lt;") >> P.R("<"))
                        | withcolor(36) ** SCREEN_NAME
-                       | P.StringA() ** P.Char(" ") * withcolor(35) ** HASHTAG
-                       | P.AnyChar()
-                       ) * P.Delay(arrangetext)
+                       | StringA() ** P.C(" ") * withcolor(35) ** HASHTAG
+                       | P.AC
+                       ) * P.Z(arrangetext)
 
 def withcolor(color):
-    return lambda text: '\033[1;%dm%s\033[1;m' % (color, text)
+    return lambda text: u'\033[1;%dm%s\033[1;m' % (color, text)
 
 def isfavs(data):
     return "event" in data and data["event"] in ["favorite", "unfavorite"]
@@ -28,20 +31,19 @@ def isstatus(data):
     return "user" in data and "id" in data
 
 def showstatus(i, data):
-    if isstatus(data):
-        name = data["user"]["screen_name"]
-        if "retweeted_status" in data:
-            st = data["retweeted_status"]
-            print " ".join([withcolor(33)(i),
-                            withcolor(32)(st["user"]["screen_name"]) + ":",
-                            unicode(arrangetext()(st["text"])[0]),
-                            "--" + withcolor(34)(name)])
-        else:
-            print " ".join([withcolor(33)(i),
-                            withcolor(34)(name) + ":",
-                            unicode(arrangetext()(data["text"])[0])])
+    name = data["user"]["screen_name"]
+    if "retweeted_status" in data:
+        st = data["retweeted_status"]
+        print " ".join([withcolor(33)(i),
+                        withcolor(32)(st["user"]["screen_name"]) + ":",
+                        unicode(arrangetext()(st["text"])),
+                        "--" + withcolor(34)(name)])
+    else:
+        print " ".join([withcolor(33)(i),
+                        withcolor(34)(name) + ":",
+                        unicode(arrangetext()(data["text"]))])
 
-def listen_timeline(identifier):
+def listen_timeline(identifier, condition=C.Return(True)):
     client = userstream.Client(identifier)
     it = iter(client)
     while True:
@@ -53,7 +55,8 @@ def listen_timeline(identifier):
         if data is None:
             print "Stream stopped."
             break
-        showstatus(i, data)
+        if isstatus(data) and condition.check(data):
+            showstatus(i, data)
         
 if __name__ == "__main__":
     if sys.argv[1] == "server":

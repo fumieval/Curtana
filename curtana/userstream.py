@@ -130,9 +130,7 @@ class StreamServer():
         return self.stream[name].close(index)
 
     def get(self, name, index):
-        data = self.stream[name].queues[index].get()
-        if data:
-            return data[0], data[1]
+        return self.stream[name].queues[index].get()
 
 def serve(host=DEFAULT_HOST, port=DEFAULT_PORT):
     server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port), allow_none=True)

@@ -1,5 +1,5 @@
 """
-Parsing expression grammar library
+Parsing expression grammar (?) library
 """
 
 class VoidMix(object):
@@ -17,6 +17,10 @@ class UnaryMix(object):
     def __init__(self, x): self._x = x
     def __repr__(self): return "%s%r" % (self.__class__.op, self._x)
 
+class PropertyMix(object):
+    def __init__(self, x): self._x = x
+    def __repr__(self): return "%r.%s" % (self._x, self.__class__.attr)
+
 class InfixMix(object):
     def __init__(self, left, right):
         self._left = left
@@ -28,26 +32,38 @@ class StringI(object):
     def __init__(self, string, start=0):
         self.string = string
         self.end = len(string)
+        self.start = start
         self.index = start
         
     def next(self):
-        if self.index < self.end:
+        if self.eos:
+            raise StopIteration
+        else:
             c = self.string[self.index]
             self.index += 1
             return c
-        else:
             raise StopIteration
     def __repr__(self):
         return "StringI(%r)" % self.remaining
+    def reset(self):
+        self.index = self.start
     @property
     def tee(self):
         return StringI(self.string, self.index)
     @property
     def remaining(self):
         return self.string[self.index:]
+    @property
+    def peek(self):
+        return self.string[self.index]
+    @property
+    def eos(self):
+        return self.index == self.end
 
 class Parser(object):
-    """Parser base."""
+    """Parser base.
+    type: Parser NoneType
+    """
     def __init__(self): pass
     def __and__(self, f):           return Bind(self, f)
     def __div__(self, other):       return Or(self, other)
@@ -59,56 +75,88 @@ class Parser(object):
     def __invert__(self):           return Not(self)
     def __neg__(self):              return Many(self)
     def __pos__(self):              return Many1(self)
+    def __mod__(self, n):           return Repeat(self, n)
     def __rpow__(self, f):          return Lift(f, self)
     def __rxor__(self, f):          return Lift(f, self)
+    def __add__(self, f):           return Concat(self, f)
+    
+    @property
+    def opt(self):                  return Optional(self)
+    
     def __call__(self, string):
-        return self.parse(StringI(string))
+        result = self.parse(StringI(string))
+        return result and result[0]
+    def parse_string(self, string):
+        result = self.parse(StringI(string))
+        return result and (result[0], result[1].remaining)
     def parse(self, string):
-        raise NotImplementedError
+        return None, string
 
 class Return(Parser, SingleMix):
-    """Always returns specified value."""
+    """Always returns specified value.
+    type: a -> Parser a
+    """
     __init__ = SingleMix.__init__
     def parse(self, string): return self._x, string
 
 class Any(Parser, VoidMix):
-    """Always succeed and consume all of the input."""
+    """Always succeed and consume all of the input.
+    type: Parser string
+    """
     def parse(self, string):
-        return string.remaining, iter("")
+        return string.remaining, StringI("")
 
 class Failure(Parser, VoidMix):
-    """Always fail."""
+    """Always fail.
+    type: Parser a
+    """
     def parse(self, string): return None
 
 class Delay(Parser, SingleMix):
     """It uses the return value of the function.
-    This is useful when you want to define a recursive parser."""
+    This is useful when you want to define a recursive parser.
+    type: (() -> Parser a) -> Parser a
+    """
     __init__ = SingleMix.__init__
     def parse(self, string): return self._x().parse(string)
 
 class And(Parser, SingleMix):
     """
     Succeeds if the parser succeeded. But it doesn't consume string.
+    type: Parser a -> Parser NoneType
     """
     __init__ = SingleMix.__init__
     def parse(self, string):
         return self._x.parse(string.tee) and (None, string)
-    def __repr__(self):
+    def __repr__(self, string):
         return "abs(%r)" % self._x
 
 class Not(Parser, UnaryMix):
     """
     Succeeds if the parser failed. But it doesn't consume string.
+    type: Parser a -> Parser NoneType
     """
     op = "~"
     __init__ = UnaryMix.__init__
     def parse(self, string):
         return not self._x.parse(string.tee) and (None, string) or None
 
+class Optional(Parser, PropertyMix):
+    """
+    Returns the parser's result. but if the parser failed, it returns None.
+    type: Parser a -> Parser (Either a NoneType)
+    """
+    attr = "opt"
+    __init__ = PropertyMix.__init__
+    def parse(self, string):
+        result = self._x.parse(string)
+        return result or (None, string)
+
 class Or(Parser, InfixMix):
     """
     Returns a result of the first parser if the first parser succeed
     otherwise it returns a result of the second parser.
+    type: (Parser a, Parser b) -> Parser (Either a b)
     """
     op = "|"
     __init__ = InfixMix.__init__
@@ -119,6 +167,7 @@ class Bind(Parser, InfixMix):
     """
     Compose the parser and the function that takes a result of the parser and returns a parser.
     It's equivalent to Haskell's monad binding (>>=).
+    type: (Parser a, a -> Parser b) -> Parser b
     """
     op = "&"
     __init__ = InfixMix.__init__
@@ -127,7 +176,9 @@ class Bind(Parser, InfixMix):
         return result and self._right(result[0]).parse(result[1])
 
 class DiscardL(Parser, InfixMix):
-    """Composite of two parsers, discarding the result of the first parser."""
+    """Composite of two parsers, discarding the result of the first parser.
+    type: (Parser a, Parser b) -> Parser b
+    """
     op = ">>"
     __init__ = InfixMix.__init__
     def parse(self, string):
@@ -135,7 +186,9 @@ class DiscardL(Parser, InfixMix):
         return result0 and self._right.parse(result0[1])
 
 class DiscardR(Parser, InfixMix):
-    """Composite of two parsers, discarding the result of the second parser."""
+    """Composite of two parsers, discarding the result of the second parser.
+    type: (Parser a, Parser b) -> Parser a
+    """
     op = "<<"
     __init__ = InfixMix.__init__
     def parse(self, string):
@@ -145,7 +198,9 @@ class DiscardR(Parser, InfixMix):
             return result1 and (result0[0], result1[1])
                 
 class Lift(Parser, InfixMix):
-    """Lifting of the function to a parser."""
+    """Lifting of the function to a parser.
+    type: (a -> b, Parser a) -> Parser b
+    """
     op = "^"
     __init__ = InfixMix.__init__
     def parse(self, string):
@@ -153,7 +208,9 @@ class Lift(Parser, InfixMix):
         return result and (self._left(result[0]), result[1])
 
 class Apply(Parser, InfixMix):
-    """Applying the parser to the parser."""
+    """Applying the parser to the parser.
+    type: (Parser (a -> b), Parser a) -> Parser b
+    """
     op = "*"
     __init__ = InfixMix.__init__
     def parse(self, string):
@@ -165,6 +222,7 @@ class Apply(Parser, InfixMix):
 class ApplyN(Parser):
     """
     Apply a function to specified parsers' result.
+    type: ((a, b, c, ...) -> z, Parser a, Parser b, Parser c,...) -> Parser z
     """
     def __init__(self, f, *parsers):
         self._f = f
@@ -186,7 +244,9 @@ class ApplyN(Parser):
         return self._f(*args), t
 
 class Null(Parser, VoidMix):
-    """Matches empty string."""
+    """Matches empty string.
+    type: Parser string
+    """
     def parse(self, string):
         try:
             next(string)
@@ -195,7 +255,9 @@ class Null(Parser, VoidMix):
         return None
 
 class Sat(Parser, SingleMix):
-    """Matches a character satisfying the predicate."""
+    """Matches a character satisfying the predicate.
+    type: (char -> bool) -> Parser char
+    """
     __init__ = SingleMix.__init__
     def parse(self, string):
         try:
@@ -205,26 +267,34 @@ class Sat(Parser, SingleMix):
         return self._x(char) and (char, string) or None
 
 class Char(Sat, SingleMix_):
-    """Matches specified character."""
+    """Matches specified character.
+    type: char -> Parser char
+    """
     def __init__(self, char):
         Sat.__init__(self, lambda x: x == char)
         SingleMix_.__init__(self, char)
     __repr__ = SingleMix_.__repr__
 
 class NotChar(Sat, SingleMix_):
-    """Matches a character expecting specified character."""
+    """Matches a character expecting specified character.
+    type: char -> Parser char
+    """
     def __init__(self, char):
         Sat.__init__(self, lambda x: x != char)
         SingleMix_.__init__(self, char)
     __repr__ = SingleMix_.__repr__
 
 class AnyChar(Sat, VoidMix):
-    """Matches any character."""
+    """Matches any character.
+    type: Parser char
+    """
     def __init__(self): Sat.__init__(self, lambda x: True)
     __repr__ = VoidMix.__repr__
 
 class String(Parser, SingleMix):
-    """Matches specified string."""
+    """Matches specified string.
+    type: string -> Parser string
+    """
     __init__ = SingleMix.__init__
     def parse(self, string):
         s = ""
@@ -238,11 +308,55 @@ class String(Parser, SingleMix):
             s += c
         return s, string
 
+class Until(Parser, SingleMix):
+    """Delimits by the parser.
+    type: parser -> Parser string
+    """
+    __init__ = SingleMix.__init__
+    def parse(self, string):
+        s = ""
+        while True:
+            r = self._x.parse(string.tee)
+            if r:
+                return s, string
+            try:
+                s += next(string)
+            except StopIteration:
+                break
+        return s, string
+
+class Delimit(Parser, SingleMix):
+    """Delimits by the parser.
+    type: parser -> Parser string
+    """
+    __init__ = SingleMix.__init__
+    def parse(self, string):
+        s = ""
+        while True:
+            r = self._x.parse(string.tee)
+            if r:
+                return s, r[1]
+            try:
+                s += next(string)
+            except StopIteration:
+                break
+        return s, string
+
+class Concat(Parser, InfixMix):
+    op = "+"
+    __init__ = InfixMix.__init__
+    def parse(self, string):
+        result0 = self._left.parse(string)
+        if result0:
+            result1 = self._right.parse(result0[1])
+            return result1 and (result0[0] + result1[0], result1[1])
+
 class Many(Parser, UnaryMix):
-    """Applies the parser repeatedly and returns a list of results."""
+    """Applies the parser repeatedly and returns a list of results.
+    type: Parser a -> Parser [a]
+    """
     op = "-"
     __init__ = UnaryMix.__init__
-    __repr__ = UnaryMix.__repr__
     def parse(self, string):
         results = []
         t = string
@@ -254,51 +368,28 @@ class Many(Parser, UnaryMix):
             t = result[1]
 
 class Many1(Parser, UnaryMix):
-    """Applies the parser repeatedly at least once."""
+    """Applies the parser repeatedly at least once.
+    type: Parser a -> Parser [a]
+    """
     op = "+"
     __init__ = UnaryMix.__init__
-    __repr__ = UnaryMix.__repr__
     def parse(self, string):
         result = self._x.parse(string)
         if result:
             xs, t = Many(self._x).parse(result[1])
             return [result[0]] + xs, t
 
-class TupleA(tuple):
-    def __call__(self, x):
-        return TupleA(self + (x,))
-
-class StringA():
-    def __init__(self, string=""):
-        self.string = string
-    def __call__(self, other):
-        return StringA(self.string + other)
-    def __radd__(self, other):
-        if isinstance(other, StringA):
-            return other.string + self.string
-        else:
-            return other + self.string
-    def __hash__(self):
-        return hash(self.string)
-    def __cmp__(self, other):
-        if isinstance(other, StringA):
-            return self.x.__cmp__(other.string)
-        else:
-            return self.x.__cmp__(other)
-    def __len__(self):
-        return len(self.string)
-    def __str__(self):
-        return str(self.string)
-    def __unicode__(self):
-        return unicode(self.string)
-    def __repr__(self):
-        return repr(self.string)
-
-join = "".join
-
-spaces = -Sat(lambda x: x.isspace())
-digit = Sat(lambda x: x.isdigit())
-alpha = Sat(lambda x: x.isalpha())
-alnum = Sat(lambda x: x.isalnum())
-
-nat = int ** join ** +digit
+class Repeat(Parser, InfixMix):
+    op = "%"
+    __init__ = InfixMix.__init__
+    def parse(self, string):
+        result = []
+        s = string
+        for _ in xrange(self._right):
+            r = self._left.parse(s)
+            if r:
+                result.append(r[0])
+                s = r[1]
+            else:
+                return None
+        return result, string

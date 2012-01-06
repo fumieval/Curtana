@@ -1,5 +1,9 @@
 import cPickle as pickle
-from curtana.lib.parser import Failure
+from curtana.lib.container import TupleA
+from curtana.lib.parser import Return, Failure
+
+def call(f):
+    return TupleA() ** Return(f)
 
 class Component():
     parser = Failure()

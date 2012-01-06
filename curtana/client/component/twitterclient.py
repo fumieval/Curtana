@@ -9,32 +9,27 @@ import curtana.lib.urllib
 from curtana.client import component, syntax
 from curtana import userstream
 
-import curtana.lib.parser as P
 import curtana.common.twitter as T
-
-def call(f):
-    return P.TupleA() ** P.Return(f)
 
 class TwitterClient(component.Component):
     def __init__(self):
+        from curtana.lib.parser_aliases import A, C, S, AC
         self.parser = (
-            P.Char("/") >> (
-                  P.String("login ") >> call(self.twitter_auth) * P.Any()
-                | P.String("connect ") >> call(self.listen_timeline) * P.Any()
-                | P.String("disconnect ") >> call(self.terminate)
-                | call(self.message("No such command"))
+            C("/") >> (
+                  S("login ") >> component.call(self.twitter_auth) * A
+                | S("connect ") >> component.call(self.listen_timeline) * A
+                | S("disconnect ") >> component.call(self.terminate)
+                | component.call(self.message("No such command"))
                 )
-            | P.Char("\\") >> call(self.post_tweet) * P.Any()
-            | P.Char("@") >> call(self.respond)
-                * P.AnyChar()
-                * P.Any())
+            | C("\\") >> component.call(self.post_tweet) * A
+            | C(":") >> component.call(self.respond) * AC * A)
         
         self.respond_parser = \
-            (P.Char("@") >> call(self.reply) * P.Any()
-             | P.Char("`") >> call(self.unofficialRT) * P.Any()
-             | P.Char("r") >> call(self.retweet)
-             | P.Char("f") >> call(self.favorite)
-             | call(self.reply) * P.Any())
+            (C("@") >> component.call(self.reply) * A
+             | C("`") >> component.call(self.unofficialRT) * A
+             | C("r") >> component.call(self.retweet)
+             | C("f") >> component.call(self.favorite)
+             | component.call(self.reply) * A)
     
     def message(self, text):
         def _(env, user):
@@ -73,11 +68,12 @@ class TwitterClient(component.Component):
                           access_token_secret=access_token_secret)
 
     def respond(self, env, user, target, text):
-        action = self.respond_parser(text.decode("utf-8"))[0]
-        if target in self.map:
-            action[0](env, user, self.map[target], *action[1:])
-        else:
-            print >> sys.stderr, "No such target %s" % target
+        action = self.respond_parser(text.decode("utf-8"))
+        if action:
+            if target in self.map:
+                action[0](env, user, self.map[target], *action[1:])
+            else:
+                print >> sys.stderr, "No such target %s" % target
     
     def reply(self, env, user, target, text):
         self.api.PostUpdate("@%s %s" % (target[1], text), target[0])

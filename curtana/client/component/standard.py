@@ -1,28 +1,27 @@
-import curtana.lib.parser as P
+
 import readline
 from curtana.client import syntax
 
-from curtana.client.component import Component
-
-def call(f):
-    return P.TupleA() ** P.Return(f)
+from curtana.client.component import call, Component
 
 class Standard(Component):
     def __init__(self):
+        from curtana.lib.parser_aliases import A, C, D
+        delimited = D(C(":"))
         self.parser = (
-              P.Char("%") >> call(self.set_env) * P.join ** -P.NotChar(":") * P.Any()
-            | P.Char(">") >> call(self.prompt) * P.join ** -P.NotChar(":") * P.Any()
-            | P.Char(",") >> call(self.expand_text) * P.Any()
-            | P.Char("?") >> call(self.show_help)
-            | P.Char(".") >> call(self.echo_text) * P.Any()
-            | P.Char("'") >> call(self.command_quote) * P.Any()
+              C("%") >> call(self.set_env) * delimited * A
+            | C(">") >> call(self.prompt) * delimited * A
+            | C(",") >> call(self.expand_text) * A
+            | C("!help") >> call(self.show_help)
+            | C(".") >> call(self.echo_text) * A
+            | C("'") >> call(self.command_quote) * A
             )
     
     def command(self, env, user, text):
         for component in user.CLIENT_COMPONENTS:
             action = component.parser(text)
             if action:
-                component.run(env, user, action[0])
+                component.run(env, user, action)
     
     def command_fromfile(self, env, user, path):
         for line in open(path, "r"):
