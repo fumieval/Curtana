@@ -3,33 +3,43 @@ import threading
 
 import sys
 
+from curtana.client import component
+from curtana.common import userstream
+
 import twitter
-
-import curtana.lib.urllib
-from curtana.client import component, syntax
-from curtana import userstream
-
-import curtana.common.twitter as T
+import curtana.common.twitterlib as T
+import twython
 
 class TwitterClient(component.Component):
-    def __init__(self):
-        from curtana.lib.parser_aliases import A, C, S, AC
+    def __init__(self, extensions):
+        from curtana.lib.parser_aliases import A
+        self.tweet_parser = A & (lambda x: lambda: x)
+        
+        self.update_parser()
+        component.Component.__init__(self, extensions, multithread=True)
+    
+    def update_parser(self):
+        from curtana.lib.parser_aliases import A, C, S, AC, D
         self.parser = (
             C("/") >> (
                   S("login ") >> component.call(self.twitter_auth) * A
                 | S("connect ") >> component.call(self.listen_timeline) * A
                 | S("disconnect ") >> component.call(self.terminate)
+                | S("reply ") >> component.call(self.post_reply) * D(C(":")) * self.tweet_parser
                 | component.call(self.message("No such command"))
                 )
-            | C("\\") >> component.call(self.post_tweet) * A
+            | C("\\") >> component.call(self.post_tweet) * self.tweet_parser
             | C(":") >> component.call(self.respond) * AC * A)
         
         self.respond_parser = \
-            (C("@") >> component.call(self.reply) * A
-             | C("`") >> component.call(self.unofficialRT) * A
+            (C("@") >> component.call(self.reply) * self.tweet_parser
+             | C("`") >> component.call(self.unofficialRT) * self.tweet_parser
              | C("r") >> component.call(self.retweet)
              | C("f") >> component.call(self.favorite)
-             | component.call(self.reply) * A)
+             | component.call(self.reply) * self.tweet_parser)
+    
+    def add_respond_syntax(self, parser):
+        self.respond_parser = parser | self.respond_parser
     
     def message(self, text):
         def _(env, user):
@@ -41,34 +51,40 @@ class TwitterClient(component.Component):
         self.api = None
         self.map = {}
         self.listener = None
+        component.Component.initialize(self, env, user)
     
     def terminate(self, env, user):
         print "Terminating."
         if self.listener:
             self.listener.disconnect()
+        component.Component.terminate(self, env, user)
         
     def set_header(self, env, user, text):
-        env["HEADER"] = syntax.expand(env, user, text)
+        env["HEADER"] = text
     
     def set_footer(self, env, user, text):
-        env["FOOTER"] = syntax.expand(env, user, text)
+        env["FOOTER"] = text
 
     def post_tweet(self, env, user, text):
         try:
-            self.api.PostUpdate(env["HEADER"] + syntax.expand(env, user, text) + env["FOOTER"])
-        except twitter.TwitterError:
+            self.api.updateStatus(status=env["HEADER"] + text() + env["FOOTER"])
+        except twython.twython.TwythonError:
             print >> sys.stderr, sys.exc_info()[1]
 
+    def post_reply(self, env, user, text, in_reply_to_status_id):
+        try:
+            self.api.updateStatus(status=env["HEADER"] + text() + env["FOOTER"],
+                                  in_reply_to_status_id=in_reply_to_status_id)
+        except twython.twython.TwythonError:
+            print >> sys.stderr, sys.exc_info()[1]
+
+
     def twitter_auth(self, env, user, name):
-        access_token, access_token_secret = T.get_and_register(name)
         env["NAME"] = name
-        self.api = ApiMod(consumer_key=T.CONSUMER_KEY,
-                          consumer_secret=T.CONSUMER_SECRET,
-                          access_token_key=access_token,
-                          access_token_secret=access_token_secret)
+        self.api = T.ApiMod.from_name(name)
 
     def respond(self, env, user, target, text):
-        action = self.respond_parser(text.decode("utf-8"))
+        action = self.respond_parser(text().decode("utf-8"))
         if action:
             if target in self.map:
                 action[0](env, user, self.map[target], *action[1:])
@@ -76,16 +92,16 @@ class TwitterClient(component.Component):
                 print >> sys.stderr, "No such target %s" % target
     
     def reply(self, env, user, target, text):
-        self.api.PostUpdate("@%s %s" % (target[1], text), target[0])
+        self.api.updateStatus(status="@%s %s" % (target[1], text), in_reply_to_status_id=target[0])
     
     def unofficialRT(self, env, user, target, text):
-        self.api.PostUpdate("%s RT @%s: %s" % (text, target[1], target[2]))
+        self.api.updateStatus(status="%s RT @%s: %s" % (text, target[1], target[2]))
     
     def favorite(self, env, user, target):
-        self.api.CreateFavorite(twitter.Status(id=target[0]))
+        self.api.CreateFavorite(id=target[0])
     
     def retweet(self, env, user, target):
-        self.api.Retweet(twitter.Status(id=target[0]))
+        self.api.reTweet(id=target[0])
         
     def listen_timeline(self, env, user, text):
         self.listener = TimelineListener(self, env, text)
@@ -111,15 +127,3 @@ class TimelineListener(threading.Thread):
 
     def disconnect(self):
         self.server.close()
-
-class ApiMod(twitter.Api):
-    
-    def __init__(self, *args, **kwargs):
-        twitter.Api.__init__(self, *args, **kwargs)
-        self._urllib = curtana.lib.urllib
-
-    def Retweet(self, status):
-        url  = '%s/statuses/retweet/%s.json' % (self.base_url, status.id)
-        json = self._FetchUrl(url, post_data={'id': status.id})
-        data = self._ParseAndCheckTwitter(json)
-        return twitter.Status.NewFromJsonDict(data)

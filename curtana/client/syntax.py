@@ -8,13 +8,13 @@ class Expr:
     def __call__(self, env, user):
         return eval(self.code, dict(env.items() + user.items()))
 
-text_parser = -(P.join ** +P.NotChar("`") |
-    P.Char("`") >> Expr ** P.join **
+text_parser = -("".join ** +P.NotChar("`") |
+    P.Char("`") >> Expr ** "".join **
         +(P.Char("\\") >> P.Char("`") | P.NotChar('`')) << P.Char("`"))
 
 def expand(env, user, text):
     result = []
-    for token in text_parser(text)[0]:
+    for token in text_parser(text):
         if isinstance(token, Expr):
             result.append(str(token(env, user.additions)))
         else:

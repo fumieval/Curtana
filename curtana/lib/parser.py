@@ -2,6 +2,10 @@
 Parsing expression grammar (?) library
 """
 
+__all__ = ["Parser", "Return", "Any", "Failure", "Delay", "ApplyN",
+           "Null", "Sat", "Char", "NotChar", "AnyChar",
+           "String", "Until", "Delimit"]
+
 class VoidMix(object):
     def __repr__(self): return self.__class__.__name__ + "()"
 
@@ -248,11 +252,8 @@ class Null(Parser, VoidMix):
     type: Parser string
     """
     def parse(self, string):
-        try:
-            next(string)
-        except StopIteration:
+        if string.eos:
             return ("", string)
-        return None
 
 class Sat(Parser, SingleMix):
     """Matches a character satisfying the predicate.

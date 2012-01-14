@@ -13,7 +13,7 @@ import Queue
 import string
 from itertools import imap, count, izip, repeat
 
-from curtana.common.twitter import get_and_register, CONSUMER_KEY, CONSUMER_SECRET
+from curtana.common.twitterlib import get_and_register, CONSUMER_KEY, CONSUMER_SECRET
 
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 9450
@@ -104,6 +104,7 @@ class StreamLeaf():
         while True:
             data = self.queues[self.index].get()
             if data is None:
+                del self.queues[self.index]
                 break
             yield data
 

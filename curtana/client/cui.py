@@ -1,12 +1,13 @@
 import readline
 import cPickle as pickle
+from curtana.client import syntax
 
 import imp
 from curtana import path
 
 def execute(env, user, line, allowdefault=True):
     for component in user.CLIENT_COMPONENTS:
-        action = component.parser(line)
+        action = component.parser(syntax.expand(env, user, line))
         if action:
             component.run(env, user, action)
             break
@@ -14,7 +15,7 @@ def execute(env, user, line, allowdefault=True):
         if allowdefault:
             execute(env, user, user.DEFAULT_ACTION(line), False)
         else:
-            print "Error: There is an infinite recursion in default action"
+            print "Error: Cannot recurse default actions"
 
 def main():
     env = pickle.load(open(path.ENV, "r"))

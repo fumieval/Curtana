@@ -4,7 +4,7 @@ import curtana.lib.parser_aliases as P
 import curtana.lib.parser_entities as E
 from curtana.lib.container import StringA
 import curtana.reader.condition as C
-from curtana import userstream
+from curtana.common import userstream
 
 def is_hashtag_char(c):
     return c == "_" or c.isalnum() or 12353 <= ord(c) <= 12534 or 20124 <= ord(c) <= 40657
@@ -30,21 +30,25 @@ def isfavs(data):
 def isstatus(data):
     return "user" in data and "id" in data
 
+def block(index, name, text, addition=""):
+    print withcolor(33)(index), name, addition
+    print text
+    print
+
 def showstatus(i, data):
     name = data["user"]["screen_name"]
     if "retweeted_status" in data:
         st = data["retweeted_status"]
-        print " ".join([withcolor(33)(i),
-                        withcolor(32)(st["user"]["screen_name"]) + ":",
-                        unicode(arrangetext()(st["text"])),
-                        "--" + withcolor(34)(name)])
+        block(i, withcolor(32)(st["user"]["screen_name"]),
+              unicode(arrangetext()(st["text"])),
+              "retweeted by " + withcolor(34)(name))
     else:
-        print " ".join([withcolor(33)(i),
-                        withcolor(34)(name) + ":",
-                        unicode(arrangetext()(data["text"]))])
+        block(i, withcolor(34)(name),
+              unicode(arrangetext()(data["text"])))
 
 def listen_timeline(identifier, condition=C.Return(True)):
     client = userstream.Client(identifier)
+    print "Client index:", client.index
     it = iter(client)
     while True:
         try:

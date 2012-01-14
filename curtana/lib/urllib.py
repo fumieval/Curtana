@@ -1,5 +1,6 @@
-import urllib2
 from urllib2 import *
+
+import urllib2
 
 class OpenerDirector(urllib2.OpenerDirector):
     def __init__(self):

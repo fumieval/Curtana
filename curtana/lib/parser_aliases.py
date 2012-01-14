@@ -1,5 +1,7 @@
 from curtana.lib import parser
 
+__all__ = ["A", "AC", "F", "N", "Z", "R", "P", "C", "NC", "D", "U", "S"]
+
 #instances
 A = parser.Any()
 AC = parser.AnyChar()
