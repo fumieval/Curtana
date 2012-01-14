@@ -38,7 +38,7 @@ def start(client):
 
         client.tweet_parser = (C("!") >> ApplyN(train_and_change_icon(client, user), AC, A)
                                | ApplyN(train_and_change_icon(client, user), R(None), A))
-        client.update_parser()
+
     return f
 
 def stop(client):

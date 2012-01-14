@@ -12,32 +12,30 @@ import twython
 
 class TwitterClient(component.Component):
     def __init__(self, extensions):
-        from curtana.lib.parser_aliases import A
-        self.tweet_parser = A & (lambda x: lambda: x)
+        from curtana.lib.parser_aliases import A, C, S, AC, D, Z
         
-        self.update_parser()
-        component.Component.__init__(self, extensions, multithread=True)
-    
-    def update_parser(self):
-        from curtana.lib.parser_aliases import A, C, S, AC, D
+        self.tweet_parser = A
         self.parser = (
             C("/") >> (
                   S("login ") >> component.call(self.twitter_auth) * A
                 | S("connect ") >> component.call(self.listen_timeline) * A
                 | S("disconnect ") >> component.call(self.terminate)
-                | S("reply ") >> component.call(self.post_reply) * D(C(":")) * self.tweet_parser
+                | S("reply ") >> component.call(self.post_reply) * D(C(":")) * Z(lambda: self.tweet_parser)
                 | component.call(self.message("No such command"))
                 )
-            | C("\\") >> component.call(self.post_tweet) * self.tweet_parser
+            | C("\\") >> component.call(self.post_tweet) * Z(lambda: self.tweet_parser)
             | C(":") >> component.call(self.respond) * AC * A)
         
         self.respond_parser = \
-            (C("@") >> component.call(self.reply) * self.tweet_parser
-             | C("`") >> component.call(self.unofficialRT) * self.tweet_parser
+            (C("@") >> component.call(self.reply) * Z(lambda: self.tweet_parser)
+             | C("`") >> component.call(self.unofficialRT) * Z(lambda: self.tweet_parser)
              | C("r") >> component.call(self.retweet)
              | C("f") >> component.call(self.favorite)
-             | component.call(self.reply) * self.tweet_parser)
+             | component.call(self.reply) * Z(lambda: self.tweet_parser))
     
+
+        component.Component.__init__(self, extensions, multithread=True)
+
     def add_respond_syntax(self, parser):
         self.respond_parser = parser | self.respond_parser
     
@@ -71,7 +69,7 @@ class TwitterClient(component.Component):
         except twython.twython.TwythonError:
             print >> sys.stderr, sys.exc_info()[1]
 
-    def post_reply(self, env, user, text, in_reply_to_status_id):
+    def post_reply(self, env, user, in_reply_to_status_id, text):
         try:
             self.api.updateStatus(status=env["HEADER"] + text() + env["FOOTER"],
                                   in_reply_to_status_id=in_reply_to_status_id)
