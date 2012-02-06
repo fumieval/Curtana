@@ -5,7 +5,12 @@ from curtana.extension import Extension
 import cPickle as pickle
 import MeCab
 import copy
+import re
+import readline
 from curtana.lib import naivebayes
+
+ENTITIES = re.compile("RT @\w+.*|\.(@\w+ )+|http:\/\/(\w+|\.|\/)*|@\w+")
+
 
 class FaceExprExtension(Extension):
     def initialize(self, client, env, user):
@@ -32,6 +37,7 @@ def start(client):
         client.parser_backup = copy.copy(client.tweet_parser)
         
         client.add_syntax(C("/") >> S("faceexpr_train ") >> call(train(client)) * AC * A)
+        client.add_syntax(C("/") >> S("faceexpr_classify ") >> call(classify(client)) * A)
         
         client.add_syntax(C("/") >> S("faceexpr_save") >> call(save(client)))
         client.add_syntax(C("/") >> S("faceexpr_save ") >> call(save(client)) * A)
@@ -45,9 +51,16 @@ def stop(client):
     def f(env, user):
         client.parser = client.parser_backup
         client.faceexpr_classifier = None
+    return f
 
 def wakati(x):
     return MeCab.Tagger(str("-Owakati")).parse(x).decode("utf-8").strip("\n").split(" ")
+
+def classify(client):
+    def f(env, user, text):
+        e = client.faceexpr_classifier.classify(wakati(ENTITIES.sub("", text)))
+        readline.set_startup_hook(lambda: readline.insert_text("!" + e))
+    return f
 
 def save(client):
     def f(env, user, path=None):
@@ -61,7 +74,7 @@ def save(client):
 
 def train(client):
     def f(env, user, expression, text):
-        client.faceexpr_classifier.train([(expression, wakati(text))])
+        client.faceexpr_classifier.train([(expression, wakati(ENTITIES.sub("", text)))])
     return f
 
 def train_and_change_icon(client, user):
@@ -69,13 +82,14 @@ def train_and_change_icon(client, user):
         def _():
             e = expression
             if e:
-                client.faceexpr_classifier.train([(e, wakati(text))])
+                client.faceexpr_classifier.train([(e, wakati(ENTITIES.sub("", text)))])
             else:
-                e = client.faceexpr_classifier.classify(wakati(text))
+                e = client.faceexpr_classifier.classify(wakati(ENTITIES.sub("", text)))
             
-            if expression:
+            if e:
                 client.api.updateProfileImage(user.FACEEXPR_ICON_PATH[e])
             
             return text
         return _
     return f
+

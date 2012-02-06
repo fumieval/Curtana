@@ -21,6 +21,8 @@ def main():
     env = pickle.load(open(path.ENV, "r"))
     user = imp.load_source("settings", path.SETTINGS)
 
+    readline.read_history_file(path.HISTORY)
+    
     for component in user.CLIENT_COMPONENTS:
         component.initialize(env, user)
     
@@ -36,6 +38,7 @@ def main():
 
         except EOFError:
             print
+            readline.write_history_file(path.HISTORY)
             break
     
         execute(env, user, line)

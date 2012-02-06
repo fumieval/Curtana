@@ -2,9 +2,9 @@
 Parsing expression grammar (?) library
 """
 
-__all__ = ["Parser", "Return", "Any", "Failure", "Delay", "ApplyN",
+__all__ = ["ParserError", "Parser", "Strict", "Return", "Any", "Failure", "Delay", "ApplyN",
            "Null", "Sat", "Char", "NotChar", "AnyChar",
-           "String", "Until", "Delimit"]
+           "String", "Until", "Delimit", "Find", "Regex"]
 
 class VoidMix(object):
     def __repr__(self): return self.__class__.__name__ + "()"
@@ -32,6 +32,9 @@ class InfixMix(object):
     def __repr__(self):
         return "(%r %s %r)" % (self._left, self.__class__.op, self._right)
 
+class ParserError(Exception):
+    pass
+
 class StringI(object):
     def __init__(self, string, start=0):
         self.string = string
@@ -54,6 +57,9 @@ class StringI(object):
     @property
     def tee(self):
         return StringI(self.string, self.index)
+    @property
+    def used(self):
+        return self.string[:self.index]
     @property
     def remaining(self):
         return self.string[self.index:]
@@ -95,6 +101,20 @@ class Parser(object):
         return result and (result[0], result[1].remaining)
     def parse(self, string):
         return None, string
+
+class Strict(Parser, SingleMix):
+    """
+    Raises a exception iff the parser failed.
+    type: Parser -> Parser
+    """
+    __init__ = SingleMix.__init__
+    def parse(self, string):
+        s, t = string.used, string.remaining
+        result = self._x.parse(string)
+        if result:
+            return result
+        else:
+            raise ParserError("Parse error on '%s' : expecting %r after '%s'" % (t, self._x, s))
 
 class Return(Parser, SingleMix):
     """Always returns specified value.
@@ -343,6 +363,18 @@ class Delimit(Parser, SingleMix):
                 break
         return s, string
 
+class Find(Parser, SingleMix):
+    __init__ = SingleMix.__init__
+    def parse(self, string):
+        while True:
+            r = self._x.parse(string.tee)
+            if r:
+                return r
+            try:
+                next(string)
+            except StopIteration:
+                break
+
 class Concat(Parser, InfixMix):
     op = "+"
     __init__ = InfixMix.__init__
@@ -380,6 +412,15 @@ class Many1(Parser, UnaryMix):
             xs, t = Many(self._x).parse(result[1])
             return [result[0]] + xs, t
 
+class Regex(Parser, SingleMix):
+    def __init__(self, x):
+        import re
+        SingleMix.__init__(self, x)
+        self.re = re.compile(x)
+    def parse(self, string):
+        result = self.re.search(string.remaining)
+        return result and (result.group(), string.remaining[result.end():])
+        
 class Repeat(Parser, InfixMix):
     op = "%"
     __init__ = InfixMix.__init__

@@ -6,7 +6,6 @@ import sys
 from curtana.client import component
 from curtana.common import userstream
 
-import twitter
 import curtana.common.twitterlib as T
 import twython
 
@@ -21,7 +20,6 @@ class TwitterClient(component.Component):
                 | S("connect ") >> component.call(self.listen_timeline) * A
                 | S("disconnect ") >> component.call(self.terminate)
                 | S("reply ") >> component.call(self.post_reply) * D(C(":")) * Z(lambda: self.tweet_parser)
-                | component.call(self.message("No such command"))
                 )
             | C("\\") >> component.call(self.post_tweet) * Z(lambda: self.tweet_parser)
             | C(":") >> component.call(self.respond) * AC * A)
@@ -33,16 +31,10 @@ class TwitterClient(component.Component):
              | C("f") >> component.call(self.favorite)
              | component.call(self.reply) * Z(lambda: self.tweet_parser))
     
-
         component.Component.__init__(self, extensions, multithread=True)
 
     def add_respond_syntax(self, parser):
         self.respond_parser = parser | self.respond_parser
-    
-    def message(self, text):
-        def _(env, user):
-            print "component.twitterclient:", text
-        return _
     
     def initialize(self, env, user):
         env["NAME"] = ""

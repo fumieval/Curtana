@@ -20,6 +20,8 @@ CONSUMER_SECRET = "NS0oAAhaRGgd931Hqak8HtqvGf8pgvryS693HmnF1I"
 
 PROXY_PARSER = TupleA() ** (P.S("http://") >> P.D(P.C(":"))) * P.D(P.C("/"))
 
+twython.twython.base_url = 'https://api.twitter.com/{{version}}' # force https connection
+
 def get_and_register(name):
     db = shelve.open(path.USERDB)
     if name not in db:
@@ -76,6 +78,7 @@ def auth():
     else:
         print('There was no response from twitter: status %s' % resp['status'])
         return None
+
 
 class ApiMod(twython.Twython):
     
@@ -152,7 +155,7 @@ class ApiMod(twython.Twython):
             fields = []
             content_type, body = twython.twython.Twython.encode_multipart_formdata(fields, files)
             headers = {'Content-Type': content_type, 'Content-Length': str(len(body))}
-            resp, content = self.client.request("http://api.twitter.com/%d/account/update_profile_image.json" % version, method='POST', body=body, headers=headers)
+            resp, content = self.client.request("https://api.twitter.com/%d/account/update_profile_image.json" % version, method='POST', body=body, headers=headers)
             return twython.twython.simplejson.loads(content.decode('utf-8'))
         except urllib2.HTTPError, e:
             print e

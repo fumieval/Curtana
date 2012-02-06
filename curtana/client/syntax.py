@@ -1,4 +1,5 @@
 import curtana.lib.parser as P
+from itertools import chain
 
 class Expr:
     def __init__(self, code):
@@ -6,11 +7,11 @@ class Expr:
     def __repr__(self):
         return "Expr(%r)" % self.code
     def __call__(self, env, user):
-        return eval(self.code, dict(env.items() + user.items()))
+        return eval(self.code, dict(chain(env.iteritems(), user.iteritems())))
 
-text_parser = -("".join ** +P.NotChar("`") |
-    P.Char("`") >> Expr ** "".join **
-        +(P.Char("\\") >> P.Char("`") | P.NotChar('`')) << P.Char("`"))
+text_parser = -("".join ** +(P.Char("\\") >> P.Char("`") | P.NotChar("`"))
+            | P.Char("`") >> Expr ** "".join ** +(P.Char("\\") >> P.Char("`") | P.NotChar("`")) << P.Char("`")
+            )
 
 def expand(env, user, text):
     result = []

@@ -26,7 +26,6 @@ class Standard(Component):
         for line in open(path, "r"):
             self.command(env, user, line.strip())
     
-
     def expand_text(self, env, user, text):
         readline.set_startup_hook(lambda: readline.insert_text(text))
         

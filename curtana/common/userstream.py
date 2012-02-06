@@ -11,7 +11,9 @@ import SimpleXMLRPCServer
 import Queue
 
 import string
-from itertools import imap, count, izip, repeat
+from itertools import imap, count, izip, ifilter
+
+from curtana.lib.stream import iterate, splitBy
 
 from curtana.common.twitterlib import get_and_register, CONSUMER_KEY, CONSUMER_SECRET
 
@@ -35,18 +37,7 @@ def streamopen(name):
     return urllib2.urlopen(req, urllib.urlencode(param))
 
 def iterstream(stream):
-    while True:
-        line = ""
-        try:
-            for c in imap(stream.read, repeat(1)):
-                if c == "\n":
-                    break
-                line += c
-        except IOError:
-            break
-        line = line.strip()
-        if line:
-            yield line
+    return ifilter("".__ne__, imap("".join, splitBy("\n".__eq__, iterate(lambda: stream.read(1)))))
 
 def makeindex(n, length=1, chars=string.digits + string.lowercase):
     if length == 0:

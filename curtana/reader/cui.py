@@ -30,8 +30,8 @@ def isfavs(data):
 def isstatus(data):
     return "user" in data and "id" in data
 
-def block(index, name, text, addition=""):
-    print withcolor(33)(index), name, addition
+def block(index, name, time, text, addition=""):
+    print withcolor(33)(index), time.split(" ")[3], name, addition
     print text
     print
 
@@ -39,11 +39,11 @@ def showstatus(i, data):
     name = data["user"]["screen_name"]
     if "retweeted_status" in data:
         st = data["retweeted_status"]
-        block(i, withcolor(32)(st["user"]["screen_name"]),
+        block(i, withcolor(32)(st["user"]["screen_name"]), data["created_at"],
               unicode(arrangetext()(st["text"])),
               "retweeted by " + withcolor(34)(name))
     else:
-        block(i, withcolor(34)(name),
+        block(i, withcolor(34)(name), data["created_at"],
               unicode(arrangetext()(data["text"])))
 
 def listen_timeline(identifier, condition=C.Return(True)):
