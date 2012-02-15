@@ -1,5 +1,4 @@
 from collections import deque
-import itertools
 
 Empty = type("EmptyType", (), {"__repr__": lambda self: "Empty"})()
 EOF = type("EOFType", (), {"__repr__": lambda self: "EOF"})()
@@ -51,7 +50,12 @@ class Cont(Iteratee):
         self.k = k
     
     def enum_(self, stream):
-        return lambda: self.k(next(stream)).enum_(stream)
+        def _():
+            try:
+                return self.k(next(stream)).enum_(stream)
+            except StopIteration:
+                return self
+        return _
     
     enum = tail_recursion(enum_)
     
