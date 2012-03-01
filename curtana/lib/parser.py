@@ -2,35 +2,12 @@
 Parsing expression grammar (?) library
 """
 
+from curtana.lib.mixin import *
+from curtana.lib.classes import Alternative, Monad
+
 __all__ = ["ParserError", "Parser", "Strict", "Return", "Any", "Failure", "Delay", "ApplyN",
            "Null", "Sat", "Char", "NotChar", "AnyChar",
            "String", "Until", "Delimit", "Find", "Regex"]
-
-class VoidMix(object):
-    def __repr__(self): return self.__class__.__name__ + "()"
-
-class SingleMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%s(%r)" % (self.__class__.__name__, self._x)
-
-class SingleMix_(object):
-    def __init__(self, y): self._y = y
-    def __repr__(self): return "%s(%r)" % (self.__class__.__name__, self._y)
-
-class UnaryMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%s%r" % (self.__class__.op, self._x)
-
-class PropertyMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%r.%s" % (self._x, self.__class__.attr)
-
-class InfixMix(object):
-    def __init__(self, left, right):
-        self._left = left
-        self._right = right
-    def __repr__(self):
-        return "(%r %s %r)" % (self._left, self.__class__.op, self._right)
 
 class ParserError(Exception):
     pass
@@ -70,28 +47,33 @@ class StringI(object):
     def eos(self):
         return self.index == self.end
 
-class Parser(object):
+
+class Parser(object, Alternative, Monad):
     """Parser base.
     type: Parser NoneType
     """
     def __init__(self): pass
-    def __and__(self, f):           return Bind(self, f)
-    def __div__(self, other):       return Or(self, other)
-    def __or__(self, other):        return Or(self, other)
+    
+    def fmap(self, f):      return Lift(f, self)
+    @staticmethod
+    def pure(x):            return Return(x)
+    @staticmethod
+    def empty():            return Failure()
+    def ap(self, other):    return Apply(self, other)
+    def alt(self, other):   return Or(self, other)
+    def bind(self, f):      return Bind(self, f)
+    
     def __rshift__(self, other):    return DiscardL(self, other)
     def __lshift__(self, other):    return DiscardR(self, other)
-    def __mul__(self, other):       return Apply(self, other)
+
     def __abs__(self):              return And(self)
     def __invert__(self):           return Not(self)
+    
     def __neg__(self):              return Many(self)
     def __pos__(self):              return Many1(self)
     def __mod__(self, n):           return Repeat(self, n)
-    def __rpow__(self, f):          return Lift(f, self)
-    def __rxor__(self, f):          return Lift(f, self)
+
     def __add__(self, f):           return Concat(self, f)
-    
-    @property
-    def opt(self):                  return Optional(self)
     
     def __call__(self, string):
         result = self.parse(StringI(string))
@@ -164,17 +146,6 @@ class Not(Parser, UnaryMix):
     __init__ = UnaryMix.__init__
     def parse(self, string):
         return not self._x.parse(string.tee) and (None, string) or None
-
-class Optional(Parser, PropertyMix):
-    """
-    Returns the parser's result. but if the parser failed, it returns None.
-    type: Parser a -> Parser (Either a NoneType)
-    """
-    attr = "opt"
-    __init__ = PropertyMix.__init__
-    def parse(self, string):
-        result = self._x.parse(string)
-        return result or (None, string)
 
 class Or(Parser, InfixMix):
     """

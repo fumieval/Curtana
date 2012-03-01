@@ -3,30 +3,7 @@ from collections import deque
 Empty = type("EmptyType", (), {"__repr__": lambda self: "Empty"})()
 EOF = type("EOFType", (), {"__repr__": lambda self: "EOF"})()
 
-class Functor:
-    def fmap(self, f):
-        raise NotImplementedError
-    def __rxor__(self, f):
-        return self.fmap(f)
-    def __rpow__(self, f):
-        return self.fmap(f)
-
-class Applicative(Functor):
-    @staticmethod
-    def pure(x):
-        raise NotImplementedError
-    def ap(self, it):
-        raise NotImplementedError
-    def __mul__(self, other):
-        return self.ap(other)
-
-class Monad:
-    def bind(self, k):
-        raise NotImplementedError
-    def __and__(self, k):
-        return self.bind(k)
-    def __rshift__(self, other):
-        return self.bind(lambda _: other)
+from curtana.lib.classes import *
 
 def tail_recursion(f):
     def tail(f):
@@ -36,7 +13,7 @@ def tail_recursion(f):
         return a
     return lambda self, stream: tail(f(self, stream))
 
-class Iteratee(Functor, Applicative, Monad):
+class Iteratee(Applicative, Monad):
     @staticmethod
     def pure(x):
         return Done(x, Empty)
@@ -161,17 +138,21 @@ def iterate(function):
     while True:
         yield function()
 
-def splitBy(predicate, iterable):
+class splitBy():
+    def __init__(self, predicate, iterable):
+        self.predicate = predicate
+        self.iterable = iter(iterable)
+        self.cont = True
     """split iterables by a element which satisfies the predicate."""
-    def iters(eos):
-        for i in iterable:
-            if predicate(i):
-                break
+    def __iters(self):
+        for i in self.iterable:
+            if self.predicate(i):
+                return
             yield i
-        eos[0] = True
-    eos = [False]
-    while not eos[0]:
-        yield iters(eos)
+        self.cont = False
+    def __iter__(self):
+        while self.cont:
+            yield self.__iters()
 
 class Branch:
     def __init__(self, stream):
