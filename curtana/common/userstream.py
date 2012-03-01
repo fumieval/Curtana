@@ -37,7 +37,7 @@ def streamopen(name):
     return urllib2.urlopen(req, urllib.urlencode(param))
 
 def iterstream(stream):
-    return ifilter("".__ne__, imap("".join, splitBy("\n".__eq__, iterate(lambda: stream.read(1)))))
+    return ifilter("".__ne__, (line.strip("\r") for line in imap("".join, splitBy("\n".__eq__, iterate(lambda: stream.read(1))))))
 
 def makeindex(n, length=1, chars=string.digits + string.lowercase):
     if length == 0:
