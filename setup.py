@@ -9,6 +9,6 @@ setup(
     keywords="Twitter",
     url="http://botis.org/wiki/Curtana",
     packages=find_packages(),
-    install_requires = ["oauth2>=1.5", "twython>=1.4"],
+    install_requires = ["oauth2>=1.5", "twython>=1.4", "readline>=6"],
     include_package_data=True,
 )

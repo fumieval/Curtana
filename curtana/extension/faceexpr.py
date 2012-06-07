@@ -54,7 +54,7 @@ def stop(client):
     return f
 
 def wakati(x):
-    return MeCab.Tagger(str("-Owakati")).parse(x).decode("utf-8").strip("\n").split(" ")
+    return MeCab.Tagger(str("-Owakati")).parse(x).strip("\n").split(" ")
 
 def classify(client):
     def f(env, user, text):
@@ -87,8 +87,10 @@ def train_and_change_icon(client, user):
                 e = client.faceexpr_classifier.classify(wakati(ENTITIES.sub("", text)))
             
             if e:
-                client.api.updateProfileImage(user.FACEEXPR_ICON_PATH[e])
-            
+                try:
+                    client.api.updateProfileImage(user.FACEEXPR_ICON_PATH[e])
+                except:
+                    pass
             return text
         return _
     return f

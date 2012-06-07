@@ -1,50 +1,59 @@
+"""
+Functions and classes for manipulating User Streams
+"""
+
+import string
+import json
 
 import urllib
 import urllib2
-from curtana.lib import oauth
-
-import json
-
 import threading
 import xmlrpclib
 import SimpleXMLRPCServer
 import Queue
 
-import string
-from itertools import imap, count, izip, ifilter
-
+from curtana.lib import oauth
+from curtana.lib.prelude import *
 from curtana.lib.stream import iterate, splitBy
 
-from curtana.common.twitterlib import get_and_register, CONSUMER_KEY, CONSUMER_SECRET
+from curtana.common.twitterlib import get_or_register, CONSUMER_KEY, CONSUMER_SECRET
 
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 9450
+DEFAULT_INDEX_CHARS = string.digits + string.lowercase
 
 STREAM_URL = "https://userstream.twitter.com/2/user.json"
-DEFAULT_INDEX_CHARS = string.digits + string.lowercase
 
 def streamopen(name):
     param = {}
-    token = oauth.OAuthToken(*get_and_register(name))
-    consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
     headers = {}
+    token = oauth.OAuthToken(*get_or_register(name))
+    consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
     request = oauth.OAuthRequest.from_consumer_and_token(
         oauth_consumer=consumer, http_url=STREAM_URL, http_method="POST",
         token=token, parameters=param)
+    
     request.sign_request(oauth.OAuthSignatureMethod_HMAC_SHA1(), consumer, token)
     headers.update(request.to_header())
-    req = urllib2.Request(STREAM_URL, headers=headers)
-    return urllib2.urlopen(req, urllib.urlencode(param))
+    return urllib2.urlopen(urllib2.Request(STREAM_URL, headers=headers),
+                           urllib.urlencode(param))
 
 def iterstream(stream):
-    return ifilter("".__ne__, (line.strip("\r") for line in imap("".join, splitBy("\n".__eq__, iterate(lambda: stream.read(1))))))
+    return filter("".__ne__, map(flip(str.strip)("\r"),
+                  map("".join, splitBy("\n".__eq__, iterate(lambda: stream.read(1))))))
 
-def makeindex(n, length=1, chars=string.digits + string.lowercase):
-    if length == 0:
-        return ""
-    else:
-        q, r = divmod(n, len(chars))
-        return chars[r] + makeindex(q, length - 1, chars)
+def genindex(length=1, chars=DEFAULT_INDEX_CHARS):
+    """
+    generate unique indices.
+    """
+    state = [0] * length
+    N = len(chars)
+    while True:
+        state[0] += 1
+        for i in xrange(N - 1):
+            if state[i] == N:
+                state[i + 1] += 1
+        yield "".join(map(state.__getitem__, state))
 
 class StreamBranch(threading.Thread):
     
@@ -54,8 +63,7 @@ class StreamBranch(threading.Thread):
         
         self.url = url
         self.queues = {}
-        self.stream = izip(imap(makeindex, count()),
-                           iterstream(url))
+        self.stream = izip(genindex(), iterstream(url))
     
     def close(self, index=None):
         if index is None:

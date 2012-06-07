@@ -2,7 +2,7 @@
 from curtana.lib.mixin import SingleMix, InfixMix
 import functools
 
-__all__ = ["IOZero", "IOException", "IOOne", "IO", "Return", "IOWrapper", "Satisfy", "IOFunction" "wrapIO", "funcIO"]
+__all__ = ["IOZero", "IOException", "IOOne", "IO", "Return", "IOWrapper", "Satisfy", "IOFunction", "wrapIO", "funcIO", "joinIO"]
 
 
 class IOZeroType:
@@ -71,7 +71,7 @@ class ModifyRef(IO):
         return "ModifyRef({0}, {1})".format(self.ref, self.f)
 
 class Return(IO, SingleMix):
-    __init__ = SingleMix.__init__()
+    __init__ = SingleMix.__init__
     def do(self):
         return self._x
 
@@ -142,6 +142,7 @@ class Satisfy(IO, SingleMix):
             return IOZero
 
 class IOFunction(IO, SingleMix):
+    __init__ = SingleMix.__init__
     def do(self):
         return self._x()
 
@@ -154,6 +155,11 @@ class IOWrapper(IO):
         except IOError, e:
             return IOException(e)
 
+class IOJoin(IO, SingleMix):
+    __init__ = SingleMix.__init__
+    def do(self):
+        return self._x().do()
+
 def funcIO(f):
     def g(*args, **kwargs):
         return IOFunction(functools.partial(f, *args, **kwargs))
@@ -162,6 +168,11 @@ def funcIO(f):
 def wrapIO(f):
     def g(*args, **kwargs):
         return IOWrapper(f, *args, **kwargs)
+    return g
+
+def joinIO(f):
+    def g(*args, **kwargs):
+        return IOJoin(functools.partial(f, *args, **kwargs))
     return g
 
 def sequence(xs):
