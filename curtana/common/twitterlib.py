@@ -37,7 +37,7 @@ def get_proxy_info():
 
 
 def auth():
-    "Authenticate to twitter and get access token."
+    """Authenticate to twitter and get access token."""
 
     oauth_consumer = oauth.Consumer(key=CONSUMER_KEY,
                                     secret=CONSUMER_SECRET)
@@ -83,8 +83,11 @@ def auth():
 class ApiMod(twython.Twython):
     @staticmethod
     def from_name(name):
-        proxies = dict((x, y) for x, y in [("http", ":".join(PROXY_PARSER(os.environ["http_proxy"]))),
-                        ("https", ":".join(PROXY_PARSER(os.environ["https_proxy"])))] if y)
+        proxies = {}
+        if "http_proxy" in os.environ:
+            proxies["http"] = ":".join(PROXY_PARSER(os.environ["http_proxy"]))
+        if "https_proxy" in os.environ:
+            proxies["https"] = ":".join(PROXY_PARSER(os.environ["https_proxy"]))
         
         access_token, access_token_secret = get_or_register(name)
         return ApiMod(CONSUMER_KEY, CONSUMER_SECRET,

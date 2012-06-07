@@ -1,34 +1,59 @@
+import itertools
 from collections import deque
-
+from curtana.lib.mixin import SingleMix, InfixMix
 from curtana.lib.classes import *
 
-def tail_recursion(f):
-    def tail(f):
-        a = f
-        while callable(a):
-            a = a()
-        return a
-    return lambda self, stream: tail(f(self, stream))
+class Processor:
+    def __rshift__(self, other):
+        return ProcessorComposite(self, other)
 
-def iterate(function):
-    while True:
-        yield function()
+class ProcessorComposite(Processor, InfixMix):
+    op = ">>"
+    __init__ = InfixMix.__init__
+    def __call__(self, stream):
+        return self._right(self._left(stream))
 
-class splitBy():
-    def __init__(self, predicate, iterable):
-        self.predicate = predicate
-        self.iterable = iter(iterable)
-        self.cont = True
+class Map(Processor, SingleMix):
+    __init__ = SingleMix.__init__
+    def __call__(self, stream):
+        return itertools.imap(self._x, stream)
+
+class Filter(Processor, SingleMix):
+    __init__ = SingleMix.__init__
+    def __call__(self, stream):
+        return itertools.ifilter(self._x, stream)
+
+class SplitBy(Processor, SingleMix):
     """split iterables by a element which satisfies the predicate."""
-    def __iters(self):
-        for i in self.iterable:
-            if self.predicate(i):
+    def __init__(self, predicate):
+        SingleMix.__init__(self, predicate)
+        self.cont = True
+    def __iters(self, iterable):
+        for i in iterable:
+            if self._x(i):
                 return
             yield i
         self.cont = False
-    def __iter__(self):
+    def __call__(self, stream):
         while self.cont:
-            yield self.__iters()
+            yield self.__iters(stream)
+
+class BufferBy(Processor, SingleMix):
+    """divide iterables to the longest list that satisfies the predicate."""
+    __init__ = SingleMix.__init__
+    def __call__(self, stream):
+        buf = []
+        for el in stream:
+            buf.append(el)
+            if not self._x(buf):
+                v = buf.pop()
+                yield buf
+                buf = [v]
+        yield buf
+        
+def iterate(function):
+    while True:
+        yield function()
 
 class Branch:
     def __init__(self, stream):
@@ -49,14 +74,3 @@ class Leaf:
             if len(self.queue) == 0:
                 self.stream.next()
             yield self.queue.popleft()
-
-def bufferBy(predicate, iterable):
-    """divide iterables to the longest list that satisfies the predicate."""
-    buf = []
-    for el in iterable:
-        buf.append(el)
-        if not predicate(buf):
-            v = buf.pop()
-            yield buf
-            buf = [v]
-    yield buf
