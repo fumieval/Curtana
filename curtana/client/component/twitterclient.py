@@ -4,7 +4,7 @@ import threading
 import sys
 
 from curtana.client import component
-from curtana.common import userstream
+from curtana.common import streaming
 
 import curtana.common.twitterlib as T
 import twython
@@ -104,7 +104,7 @@ class TimelineListener(threading.Thread):
         self.env = env
         self.map = component.map
         self.identifier = identifier
-        self.server = userstream.Client(identifier)
+        self.server = streaming.Client(identifier)
 
     def run(self):
         for i, data in self.server:

@@ -13,10 +13,10 @@ from curtana.common.twitterlib import get_or_register, CONSUMER_KEY, CONSUMER_SE
 
 import json
 
-USER_STREAMS_URL = "https://userstream.twitter.com/2/user.json"
+STATUSES_FILTER_URL = "https://stream.twitter.com/1/statuses/filter.json"
+GET_USER_URL = "https://userstream.twitter.com/2/user.json"
 
-def streamopen(name, url=USER_STREAMS_URL):
-    param = {}
+def streamopen(name, url=GET_USER_URL, **param):
     headers = {}
     token = oauth.OAuthToken(*get_or_register(name))
     consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)

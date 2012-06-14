@@ -7,20 +7,33 @@ filter = itertools.ifilter
 par = functools.partial
 
 def fanout(f, g):
-    return lambda x: (f(x), g(x))
+    def fanout_applicand(x):
+        return f(x), g(x)
+    return fanout_applicand
 
 def compose(f, g):
-    return lambda *args: f(g(args))
+    return lambda *args: f(g(*args))
 
 def fix(f):
     return par(f, lambda *args: fix(f)(*args))
 
 def flip(f):
-    return lambda x: lambda y: f(y, x)
+    def flip_applicand(x):
+        def flip_applicand_(y):
+            return f(y, x)
+        return flip_applicand_
+    return flip_applicand
 
 def star(f):
-    return lambda x: f(*x)
-    
+    def star_applicand(x):
+        return f(*x)
+    return star_applicand
+
+def unstar(f):
+    def unstar_applicand(*args):
+        return f(args)
+    return unstar_applicand
+
 class Memoize:
     """
     Example usage:
