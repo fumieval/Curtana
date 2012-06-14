@@ -1,25 +1,33 @@
+"""
+Bases performing construction and representation
+"""
 class VoidMix(object):
     def __repr__(self): return self.__class__.__name__ + "()"
 
-class SingleMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%s(%r)" % (self.__class__.__name__, self._x)
-
-class SingleMix_(object):
-    def __init__(self, y): self._y = y
-    def __repr__(self): return "%s(%r)" % (self.__class__.__name__, self._y)
-
-class UnaryMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%s%r" % (self.__class__.op, self._x)
-
-class PropertyMix(object):
-    def __init__(self, x): self._x = x
-    def __repr__(self): return "%r.%s" % (self._x, self.__class__.attr)
-
-class InfixMix(object):
-    def __init__(self, left, right):
-        self._left = left
-        self._right = right
+def SingleMix(param="x"):
+    def __init__(self, x):
+        self.__dict__[param] = x
     def __repr__(self):
-        return "(%r %s %r)" % (self._left, self.__class__.op, self._right)
+        return "{0}({1})".format(self.__class__.__name__, self.__dict__[param])
+    return type("SingleMix({!r})".format(param), (object,), {"__init__": __init__, "__repr__": __repr__})
+
+def UnaryMix(param="x"):
+    def __init__(self, x):
+        self.__dict__[param] = x
+    def __repr__(self):
+        return "%s%r" % (self.__class__.op, self.__dict__[param])
+    return type("UnaryMix({!r})".format(param), (object,), {"__init__": __init__, "__repr__": __repr__})
+
+def PropertyMix(param="x"):
+    def __init__(self, x):
+        self.__dict__[param] = x
+    def __repr__(self):
+        return "%r.%s" % (self.__dict__[param], self.__class__.attr)
+    return type("PropertyMix({!r})".format(param), (object,), {"__init__": __init__, "__repr__": __repr__})
+
+def InfixMix(left="left", right="right"):
+    def __init__(self, left, right):
+        self.__dict__[left] = left
+        self.__dict__[right] = right
+    def __repr__(self):
+        return "(%r %s %r)" % (self.__dict__[left], self.__class__.op, self.__dict__[right])
