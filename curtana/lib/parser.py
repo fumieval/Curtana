@@ -84,12 +84,12 @@ class Parser(object, Alternative, Monad):
     def parse(self, string):
         return None, string
 
-class Strict(Parser, SingleMix):
+class Strict(Parser, SingleMix("_x")):
     """
     Raises a exception iff the parser failed.
     type: Parser -> Parser
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         s, t = string.used, string.remaining
         result = self._x.parse(string)
@@ -98,11 +98,11 @@ class Strict(Parser, SingleMix):
         else:
             raise ParserError("Parse error on '%s' : expecting %r after '%s'" % (t, self._x, s))
 
-class Return(Parser, SingleMix):
+class Return(Parser, SingleMix("_x")):
     """Always returns specified value.
     type: a -> Parser a
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string): return self._x, string
 
 class Any(Parser, VoidMix):
@@ -118,100 +118,100 @@ class Failure(Parser, VoidMix):
     """
     def parse(self, string): return None
 
-class Delay(Parser, SingleMix):
+class Delay(Parser, SingleMix("_x")):
     """It uses the return value of the function.
     This is useful when you want to define a recursive parser.
     type: (() -> Parser a) -> Parser a
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string): return self._x().parse(string)
 
-class And(Parser, SingleMix):
+class And(Parser, SingleMix("_x")):
     """
     Succeeds if the parser succeeded. But it doesn't consume string.
     type: Parser a -> Parser NoneType
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         return self._x.parse(string.tee) and (None, string)
     def __repr__(self, string):
         return "abs(%r)" % self._x
 
-class Not(Parser, UnaryMix):
+class Not(Parser, UnaryMix("_x")):
     """
     Succeeds if the parser failed. But it doesn't consume string.
     type: Parser a -> Parser NoneType
     """
     op = "~"
-    __init__ = UnaryMix.__init__
+    __init__ = UnaryMix("_x").__init__
     def parse(self, string):
         return not self._x.parse(string.tee) and (None, string) or None
 
-class Or(Parser, InfixMix):
+class Or(Parser, InfixMix()):
     """
     Returns a result of the first parser if the first parser succeed
     otherwise it returns a result of the second parser.
     type: (Parser a, Parser b) -> Parser (Either a b)
     """
     op = "|"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        return self._left.parse(string.tee) or self._right.parse(string)
+        return self.left.parse(string.tee) or self.right.parse(string)
 
-class Bind(Parser, InfixMix):
+class Bind(Parser, InfixMix()):
     """
     Compose the parser and the function that takes a result of the parser and returns a parser.
     It's equivalent to Haskell's monad binding (>>=).
     type: (Parser a, a -> Parser b) -> Parser b
     """
     op = "&"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result = self._left.parse(string)
-        return result and self._right(result[0]).parse(result[1])
+        result = self.left.parse(string)
+        return result and self.right(result[0]).parse(result[1])
 
-class DiscardL(Parser, InfixMix):
+class DiscardL(Parser, InfixMix()):
     """Composite of two parsers, discarding the result of the first parser.
     type: (Parser a, Parser b) -> Parser b
     """
     op = ">>"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result0 = self._left.parse(string)
-        return result0 and self._right.parse(result0[1])
+        result0 = self.left.parse(string)
+        return result0 and self.right.parse(result0[1])
 
-class DiscardR(Parser, InfixMix):
+class DiscardR(Parser, InfixMix()):
     """Composite of two parsers, discarding the result of the second parser.
     type: (Parser a, Parser b) -> Parser a
     """
     op = "<<"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result0 = self._left.parse(string)
+        result0 = self.left.parse(string)
         if result0:
-            result1 = self._right.parse(result0[1])
+            result1 = self.right.parse(result0[1])
             return result1 and (result0[0], result1[1])
                 
-class Lift(Parser, InfixMix):
+class Lift(Parser, InfixMix()):
     """Lifting of the function to a parser.
     type: (a -> b, Parser a) -> Parser b
     """
     op = "^"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result = self._right.parse(string)
-        return result and (self._left(result[0]), result[1])
+        result = self.right.parse(string)
+        return result and (self.left(result[0]), result[1])
 
-class Apply(Parser, InfixMix):
+class Apply(Parser, InfixMix()):
     """Applying the parser to the parser.
     type: (Parser (a -> b), Parser a) -> Parser b
     """
     op = "*"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result0 = self._left.parse(string)
+        result0 = self.left.parse(string)
         if result0:
-            result1 = self._right.parse(result0[1])
+            result1 = self.right.parse(result0[1])
             return result1 and (result0[0](result1[0]), result1[1])
 
 class ApplyN(Parser):
@@ -246,11 +246,11 @@ class Null(Parser, VoidMix):
         if string.eos:
             return ("", string)
 
-class Sat(Parser, SingleMix):
+class Sat(Parser, SingleMix("_x")):
     """Matches a character satisfying the predicate.
     type: (char -> bool) -> Parser char
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         try:
             char = next(string)
@@ -258,23 +258,23 @@ class Sat(Parser, SingleMix):
             return None
         return self._x(char) and (char, string) or None
 
-class Char(Sat, SingleMix_):
+class Char(Sat, SingleMix("_y")):
     """Matches specified character.
     type: char -> Parser char
     """
     def __init__(self, char):
         Sat.__init__(self, lambda x: x == char)
-        SingleMix_.__init__(self, char)
-    __repr__ = SingleMix_.__repr__
+        SingleMix("_y").__init__(self, char)
+    __repr__ = SingleMix("_y").__repr__
 
-class NotChar(Sat, SingleMix_):
+class NotChar(Sat, SingleMix("_y")):
     """Matches a character expecting specified character.
     type: char -> Parser char
     """
     def __init__(self, char):
         Sat.__init__(self, lambda x: x != char)
-        SingleMix_.__init__(self, char)
-    __repr__ = SingleMix_.__repr__
+        SingleMix("_y").__init__(self, char)
+    __repr__ = SingleMix("_x").__repr__
 
 class AnyChar(Sat, VoidMix):
     """Matches any character.
@@ -283,11 +283,11 @@ class AnyChar(Sat, VoidMix):
     def __init__(self): Sat.__init__(self, lambda x: True)
     __repr__ = VoidMix.__repr__
 
-class String(Parser, SingleMix):
+class String(Parser, SingleMix("_x")):
     """Matches specified string.
     type: string -> Parser string
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         s = ""
         for char in self._x:
@@ -300,11 +300,11 @@ class String(Parser, SingleMix):
             s += c
         return s, string
 
-class Until(Parser, SingleMix):
+class Until(Parser, SingleMix("_x")):
     """Delimits by the parser.
     type: parser -> Parser string
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         s = ""
         while True:
@@ -317,11 +317,11 @@ class Until(Parser, SingleMix):
                 break
         return s, string
 
-class Delimit(Parser, SingleMix):
+class Delimit(Parser, SingleMix("_x")):
     """Delimits by the parser.
     type: parser -> Parser string
     """
-    __init__ = SingleMix.__init__
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         s = ""
         while True:
@@ -334,8 +334,8 @@ class Delimit(Parser, SingleMix):
                 break
         return s, string
 
-class Find(Parser, SingleMix):
-    __init__ = SingleMix.__init__
+class Find(Parser, SingleMix("_x")):
+    __init__ = SingleMix("_x").__init__
     def parse(self, string):
         while True:
             r = self._x.parse(string.tee)
@@ -346,21 +346,21 @@ class Find(Parser, SingleMix):
             except StopIteration:
                 break
 
-class Concat(Parser, InfixMix):
+class Concat(Parser, InfixMix()):
     op = "+"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
-        result0 = self._left.parse(string)
+        result0 = self.left.parse(string)
         if result0:
-            result1 = self._right.parse(result0[1])
+            result1 = self.right.parse(result0[1])
             return result1 and (result0[0] + result1[0], result1[1])
 
-class Many(Parser, UnaryMix):
+class Many(Parser, UnaryMix("_x")):
     """Applies the parser repeatedly and returns a list of results.
     type: Parser a -> Parser [a]
     """
     op = "-"
-    __init__ = UnaryMix.__init__
+    __init__ = UnaryMix("_x").__init__
     def parse(self, string):
         results = []
         t = string
@@ -371,35 +371,35 @@ class Many(Parser, UnaryMix):
             results.append(result[0])
             t = result[1]
 
-class Many1(Parser, UnaryMix):
+class Many1(Parser, UnaryMix("_x")):
     """Applies the parser repeatedly at least once.
     type: Parser a -> Parser [a]
     """
     op = "+"
-    __init__ = UnaryMix.__init__
+    __init__ = UnaryMix("_x").__init__
     def parse(self, string):
         result = self._x.parse(string)
         if result:
             xs, t = Many(self._x).parse(result[1])
             return [result[0]] + xs, t
 
-class Regex(Parser, SingleMix):
+class Regex(Parser, SingleMix("_x")):
     def __init__(self, x):
         import re
-        SingleMix.__init__(self, x)
+        SingleMix("_x").__init__(self, x)
         self.re = re.compile(x)
     def parse(self, string):
         result = self.re.search(string.remaining)
         return result and (result.group(), string.remaining[result.end():])
         
-class Repeat(Parser, InfixMix):
+class Repeat(Parser, InfixMix()):
     op = "%"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def parse(self, string):
         result = []
         s = string
-        for _ in xrange(self._right):
-            r = self._left.parse(s)
+        for _ in xrange(self.right):
+            r = self.left.parse(s)
             if r:
                 result.append(r[0])
                 s = r[1]

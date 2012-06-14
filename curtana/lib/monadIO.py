@@ -1,9 +1,10 @@
-
+"""
+Monadic actions
+"""
 from curtana.lib.mixin import SingleMix, InfixMix
 import functools
 
 __all__ = ["IOZero", "IOException", "IOOne", "IO", "Return", "IOWrapper", "Satisfy", "IOFunction", "wrapIO", "funcIO", "joinIO"]
-
 
 class IOZeroType:
     def __repr__(self):
@@ -27,7 +28,7 @@ class IOOneType:
     
 IOOne = IOOneType()
 
-class Ref(SingleMix):
+class Ref(SingleMix("value")):
     pass
 
 class IO:
@@ -46,7 +47,7 @@ class ReadRef(IO):
     def __init__(self, ref):
         self.ref = ref
     def do(self):
-        return self.ref._x
+        return self.ref.value
     def __repr__(self):
         return "ReadRef({0})".format(self.ref)
 
@@ -55,7 +56,7 @@ class WriteRef(IO):
         self.ref = ref
         self.value = value
     def do(self):
-        self.ref._x = self.value
+        self.ref.value = self.value
         return IOOne
     def __repr__(self):
         return "WriteRef({0}, {1})".format(self.ref, self.value)
@@ -65,86 +66,86 @@ class ModifyRef(IO):
         self.ref = ref
         self.f = f   
     def do(self):
-        self.ref._x = self.f(self.ref._x)
+        self.ref.value = self.f(self.ref.value)
         return IOOne     
     def __repr__(self):
         return "ModifyRef({0}, {1})".format(self.ref, self.f)
 
-class Return(IO, SingleMix):
-    __init__ = SingleMix.__init__
+class Return(IO, SingleMix()):
+    __init__ = SingleMix().__init__
     def do(self):
-        return self._x
+        return self.x
 
-class Bind(IO, InfixMix):
+class Bind(IO, InfixMix()):
     op = "&"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def do(self):
-        result = self._left.do()
+        result = self.left.do()
         if isinstance(result, IOZeroType):
             return result
-        return self._right(result).do()
+        return self.right(result).do()
 
-class DiscardL(IO, InfixMix):
+class DiscardL(IO, InfixMix()):
     op = ">>"
-    __init__ = InfixMix.__init__            
+    __init__ = InfixMix().__init__            
     def do(self):
-        result = self._left.do()
+        result = self.left.do()
         if isinstance(result, IOZeroType):
             return result
-        return self._right.do()
+        return self.right.do()
 
-class DiscardR(IO, InfixMix):
+class DiscardR(IO, InfixMix()):
     op = "<<"
-    __init__ = InfixMix.__init__            
+    __init__ = InfixMix().__init__            
     def do(self):
-        result = self._left.do()
+        result = self.left.do()
         if isinstance(result, IOZeroType):
             return result
-        self._right.do()
+        self.right.do()
         return result
 
-class Or(IO, InfixMix):
+class Or(IO, InfixMix()):
     op = "|"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def do(self):
-        result = self._left.do()
+        result = self.left.do()
         if isinstance(result, IOZeroType):
-            return self._right.do()
+            return self.right.do()
         return result    
 
-class Lift(IO, InfixMix):
+class Lift(IO, InfixMix()):
     op = "^"
-    __init__ = InfixMix.__init__
+    __init__ = InfixMix().__init__
     def do(self):
-        result = self._right.do()
+        result = self.right.do()
         if isinstance(result, IOZeroType):
             return result
-        return self._left(result)
+        return self.left(result)
 
-class Apply(IO, InfixMix):
+class Apply(IO, InfixMix()):
     op = "*"
-    __init__ = InfixMix.__init__    
+    __init__ = InfixMix().__init__    
     def do(self):
-        f = self._left.do()
+        f = self.left.do()
         if isinstance(f, IOZeroType):
             return f
-        x = self._right.do()
+        x = self.right.do()
         if isinstance(x, IOZeroType):
             return x
         return f(x)
 
-class Satisfy(IO, SingleMix):
-    __init__ = SingleMix.__init__
+class Satisfy(IO, SingleMix("predicate")):
+    __init__ = SingleMix("predicate").__init__
     def do(self):
-        if self._x():
+        if self.predicate():
             return IOOne
         else:
             return IOZero
 
-class IOFunction(IO, SingleMix):
-    __init__ = SingleMix.__init__
+class IOFunction(IO, SingleMix()):
+    __init__ = SingleMix().__init__
     def do(self):
-        return self._x()
+        return self.x()
 
 class IOWrapper(IO):
     def __init__(self, f, *args, **kwargs):
@@ -155,10 +156,10 @@ class IOWrapper(IO):
         except IOError, e:
             return IOException(e)
 
-class IOJoin(IO, SingleMix):
-    __init__ = SingleMix.__init__
+class IOJoin(IO, SingleMix()):
+    __init__ = SingleMix().__init__
     def do(self):
-        return self._x().do()
+        return self.x().do()
 
 def funcIO(f):
     def g(*args, **kwargs):
