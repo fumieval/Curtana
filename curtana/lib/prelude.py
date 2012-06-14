@@ -45,22 +45,26 @@ def unstar(f):
         return f(args)
     return unstar_applicand
 
-class Once:
+class once:
     """
     Example usage:
-    >>> @Once
+    >>> @once
     ... def fib(n):
     ...     if n <= 1:
     ...         return n
     ...     else:
     ...         return fib(n - 1) + fib(n - 2)
-    >>> fib(300)
-    222232244629420445529739893461909967206666939096499764990979600L
+    >>> fib(100)
+    354224848179261915075L
     """
     def __init__(self, f):
         self.f = f
         self.memo = {}
-
+    
+    @property
+    def __doc__(self):
+        return self.f.__doc__
+    
     def __call__(self, *args):
         if args in self.memo:
             return self.memo[args]
@@ -68,9 +72,15 @@ class Once:
             result = self.f(*args)
             self.memo[args] = result
             return result
+    
     def force(self, *args):
         result = self.f(*args)
         self.memo[args] = result
-        return result        
-    def clear():
+        return result
+    
+    def clear(self):
         self.memo = {}
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

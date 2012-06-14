@@ -32,7 +32,6 @@ class Ref(SingleMix("value")):
     pass
 
 class IO:
-    def __init__(self): pass
     def __and__(self, f):           return Bind(self, f)
     def __or__(self, other):        return Or(self, other)
     def __rshift__(self, other):    return DiscardL(self, other)
@@ -72,13 +71,11 @@ class ModifyRef(IO):
         return "ModifyRef({0}, {1})".format(self.ref, self.f)
 
 class Return(IO, SingleMix()):
-    __init__ = SingleMix().__init__
     def do(self):
         return self.x
 
 class Bind(IO, InfixMix()):
     op = "&"
-    __init__ = InfixMix().__init__
     def do(self):
         result = self.left.do()
         if isinstance(result, IOZeroType):
@@ -87,7 +84,6 @@ class Bind(IO, InfixMix()):
 
 class DiscardL(IO, InfixMix()):
     op = ">>"
-    __init__ = InfixMix().__init__            
     def do(self):
         result = self.left.do()
         if isinstance(result, IOZeroType):
@@ -96,7 +92,6 @@ class DiscardL(IO, InfixMix()):
 
 class DiscardR(IO, InfixMix()):
     op = "<<"
-    __init__ = InfixMix().__init__            
     def do(self):
         result = self.left.do()
         if isinstance(result, IOZeroType):
@@ -106,7 +101,6 @@ class DiscardR(IO, InfixMix()):
 
 class Or(IO, InfixMix()):
     op = "|"
-    __init__ = InfixMix().__init__
     def do(self):
         result = self.left.do()
         if isinstance(result, IOZeroType):
@@ -115,7 +109,6 @@ class Or(IO, InfixMix()):
 
 class Lift(IO, InfixMix()):
     op = "^"
-    __init__ = InfixMix().__init__
     def do(self):
         result = self.right.do()
         if isinstance(result, IOZeroType):
@@ -124,7 +117,6 @@ class Lift(IO, InfixMix()):
 
 class Apply(IO, InfixMix()):
     op = "*"
-    __init__ = InfixMix().__init__    
     def do(self):
         f = self.left.do()
         if isinstance(f, IOZeroType):
@@ -135,7 +127,6 @@ class Apply(IO, InfixMix()):
         return f(x)
 
 class Satisfy(IO, SingleMix("predicate")):
-    __init__ = SingleMix("predicate").__init__
     def do(self):
         if self.predicate():
             return IOOne
@@ -143,7 +134,6 @@ class Satisfy(IO, SingleMix("predicate")):
             return IOZero
 
 class IOFunction(IO, SingleMix()):
-    __init__ = SingleMix().__init__
     def do(self):
         return self.x()
 
@@ -157,7 +147,6 @@ class IOWrapper(IO):
             return IOException(e)
 
 class IOJoin(IO, SingleMix()):
-    __init__ = SingleMix().__init__
     def do(self):
         return self.x().do()
 
