@@ -68,7 +68,3 @@ def InfixMix(left="left", right="right"):
     def __repr__(self):
         return "(%r %s %r)" % (self.__dict__[left], self.__class__.op, self.__dict__[right])
     return type("InfixMix({!r}, {!r})".format(left, right), (object,), {"__init__": __init__, "__repr__": __repr__})
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()

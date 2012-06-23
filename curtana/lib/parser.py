@@ -233,7 +233,7 @@ class Null(Parser, VoidMix):
         if string.eos:
             return ("", string)
 
-class Sat(Parser, SingleMix("_x")):
+class Sat(Parser, SingleMix("predicate")):
     """Matches a character satisfying the predicate.
     type: (char -> bool) -> Parser char
     """
@@ -242,7 +242,7 @@ class Sat(Parser, SingleMix("_x")):
             char = next(string)
         except StopIteration:
             return None
-        return self._x(char) and (char, string) or None
+        return self.predicate(char) and (char, string) or None
 
 class Char(Sat, SingleMix("_y")):
     """Matches specified character.

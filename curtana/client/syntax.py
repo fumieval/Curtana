@@ -21,3 +21,6 @@ def expand(env, user, text):
         else:
             result.append(token)
     return "".join(result)
+
+class Token:
+    pass

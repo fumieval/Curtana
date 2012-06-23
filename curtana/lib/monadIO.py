@@ -4,7 +4,7 @@ Monadic actions
 from curtana.lib.mixin import SingleMix, InfixMix
 import functools
 
-__all__ = ["IOZero", "IOException", "IOOne", "IO", "Return", "IOWrapper", "Satisfy", "IOFunction", "wrapIO", "funcIO", "joinIO"]
+__all__ = ["IOZero", "IOException", "IOOne", "IO", "Return", "IOWrapper", "Satisfy", "IOFunction", "wrapIO", "funcIO", "joinIO", "sequence"]
 
 class IOZeroType:
     def __repr__(self):
@@ -165,9 +165,11 @@ def joinIO(f):
         return IOJoin(functools.partial(f, *args, **kwargs))
     return g
 
-def sequence(xs):
-    for x in xs:
-        result = x.do()
-        if isinstance(result, IOZero):
-            break
-        yield result
+def sequence(actions):
+	def results(xs):
+		for x in xs:
+			result = x.do()
+			if isinstance(result, IOZeroType):
+				break
+			yield result
+	return Return(list(results(actions)))
