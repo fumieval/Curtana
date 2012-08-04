@@ -27,21 +27,11 @@ def newstate(env, trigger, state, action):
 
 class Daemon():
     
-    """
-    Daemon class.
-    Do actions if trigger is effected.
-    """
-    
-    def __init__(self, env={}):
-        self.env = env
-        self.env["daemon"] = self
-        self.env["flag"] = {}
+    def __init__(self):
         self.trigger = {}
         self.state = {}
         self.queue = []
-        self.hooks = []
-        self.debug = False
-
+    
     def push(self, trigger, action):
         """Put trigger and action"""
         self.queue.append((trigger, action))
@@ -64,12 +54,6 @@ class Daemon():
                                   pickle.load(filename).iteritems()):
             self.state[key] = value
 
-    def setflag(self, name, value):
-        self.env["flag"][name] = value
-    
-    def getflag(self, name):
-        return self.env["flag"][name]
-    
     def run(self):
         """run daemon."""
         if self.debug:
@@ -88,19 +72,4 @@ class Daemon():
             sys.stdout.flush()
             time.sleep(RUN_INTERVAL)
 
-class Flag(Trigger):
-    """This trigger gets flag."""
-    def __init__(self, name):
-        Trigger.__init__(self)
-        self.name = name
-    def __call__(self, env):
-        return env.flag[self.name]
-    def __repr__(self):
-        return "Flag(%r)" % self.name
         
-class SetFlag(Action):
-    """This action sets the flag to specified value."""
-    def __init__(self, env, name, value):
-        def f():
-            env.flag[name] = value
-        Action.__init__(self, f)

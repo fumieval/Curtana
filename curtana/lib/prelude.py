@@ -6,6 +6,10 @@ import itertools
 
 map = itertools.imap
 filter = itertools.ifilter
+zip = itertools.izip
+
+ident = lambda x: x
+const = lambda x: lambda y: x
 
 par = functools.partial
 
